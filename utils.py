@@ -9,7 +9,7 @@ def readcif():
         try:
             infile = open(infname, 'r')
         except IOError:
-            print("File" + infname + "cannot be opened!")
+            print("File " + infname + " cannot be opened!")
             continue
         else:
             if not infname.endswith(('.cif')):
@@ -80,7 +80,7 @@ def Cart2frac(cell_params, cell_angles_rad, frac_coords):
 
 def writecif(infname, num, S):
 
-    outfname = "SQS-" + str(2*len(S)) + "_" + str(num) + ".cif"
+    outfname = "SQS--" + str(2*len(S)) + "_" + str(num) + ".cif"
 
     with open(outfname, 'w') as outfile, open(infname, 'r') as infile:
 

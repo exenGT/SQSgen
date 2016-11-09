@@ -3,7 +3,7 @@ import random
 
 numberOfTrials = 100
 numberOfS = 5
-threshold = 0
+threshold = 0.01
 
 
 A = []
