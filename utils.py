@@ -1,22 +1,23 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 ### some global variables
 a_latt = 5.6537
 
+
 def readcif():
-    while True:
-        infname = input("Open a cif file: " )
-        try:
-            infile = open(infname, 'r')
-        except IOError:
-            print("File " + infname + " cannot be opened!")
-            continue
-        else:
-            if not infname.endswith(('.cif')):
-                print('Error: Invalid input file format.')
-                continue
-            else:
-                break
+
+    #infname = input("Open a cif file: " )    ### python3
+    infname = raw_input("Open a cif file: " )    ### python2
+    try:
+        infile = open(infname, 'r')
+    except IOError:
+        print("File " + infname + " cannot be opened!")
+        return 1
+    else:
+        if not infname.endswith(('.cif')):
+            print("Error: " + infname + ": Invalid input file format.")
+            return 2
 
     cell_params = []
     cell_angles = []
@@ -54,6 +55,44 @@ def readcif():
     return infname, cell_params, cell_angles, frac_coords
 
 
+def readcif2S(infname):
+
+    try:
+        infile = open(infname, 'r')
+    except IOError:
+        print("File " + infname + " cannot be opened!")
+        return 1
+    else:
+        if not infname.endswith(('.cif')):
+            print("Error: " + infname + ": Invalid input file format.")
+            return 2
+
+    S = []
+
+    for line in infile:
+
+        if "_atom_site_fract_z" in line:
+            while True:
+                try:
+                    line = next(infile)
+                    if "Ga" in line:
+                        S.append(1)
+                    elif "In" in line:
+                        S.append(-1)
+
+                except StopIteration:
+                    break
+            break
+
+    #print("Cif file successfully read into spin vector!")
+
+    infile.close()
+
+    S = np.asarray(S)  # convert to numpy array
+
+    return S
+
+
 def frac2Cart(cell_params, cell_angles_rad, frac_coords):
 
     vol = np.sqrt(1 - np.sum(np.cos(cell_angles_rad) ** 2) + 2 * np.prod(np.cos(cell_angles_rad)))
@@ -66,6 +105,7 @@ def frac2Cart(cell_params, cell_angles_rad, frac_coords):
 
     return f2C
 
+
 def Cart2frac(cell_params, cell_angles_rad, frac_coords):
 
     vol = np.sqrt(1 - np.sum(np.cos(cell_angles_rad) ** 2) + 2 * np.prod(np.cos(cell_angles_rad)))
@@ -77,6 +117,7 @@ def Cart2frac(cell_params, cell_angles_rad, frac_coords):
                     [0, 0, np.sin(gamma) / (c * vol)]])
 
     return C2f
+
 
 def writecif(infname, num, S):
 
@@ -97,3 +138,46 @@ def writecif(infname, num, S):
                     outfile.write(line)
 
     print("Cif file " + outfname + " written successfully!")
+
+
+def hist_SQS(SQS_vals):
+
+    plt.rcParams["font.family"] = "Helvetica"
+    plt.rcParams["font.size"] = 20
+
+    plt.figure(figsize=(8,5))
+
+    plt.hist(SQS_vals, bins=np.arange(0., 1.02, 0.02))
+    plt.gca().xaxis.grid(True)
+    plt.title("")
+    plt.xticks(np.arange(0., 1.1, 0.1))
+    plt.xlim(0, 1)
+    plt.xlabel("target function value")
+    plt.ylabel("Frequency")
+    
+    plt.savefig('histogram_SQS.eps', bbox_inches='tight', dpi=100)
+    plt.show()
+
+
+def traj_SQS(SQS_opt, iter_opt, SQS_vals, iters):
+
+    plt.rcParams["font.family"] = "Helvetica"
+    plt.rcParams["font.size"] = 20
+
+    plt.figure(figsize=(8,5))
+
+    plt.scatter(np.arange(iters), SQS_vals, s=3, c='blue', alpha=0.7)
+    plt.scatter(iter_opt, SQS_opt, s=15, c='red', edgecolors='none')
+
+    plt.title("")
+    plt.xlim(-100, iters+100)
+    plt.xlabel("iteration")
+    plt.ylabel("target function value")
+
+    plt.savefig('trajectory_SQS.eps', bbox_inches='tight', dpi=150)
+    plt.show()
+
+
+def Similarity(S1, S2):
+    # uses cosine similarity
+    return np.dot(S1, S2)/(np.linalg.norm(S1)*np.linalg.norm(S2))

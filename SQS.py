@@ -1,1 +1,296 @@
-import osimport numpy as npfrom scipy.sparse import csr_matrixfrom FindAdjacencyMatrix import *from utils import *import random################## function definitions ##################def findSQS(A, S, D):    ### A should be a sparse matrix    SQS = np.dot(np.transpose(S), A.dot(S)) / (2 * len(S) * D)    return np.abs(SQS)def optimize_SQS(A_J2, A_K2, A_L2, A_M2, D_J2, D_K2, D_L2, D_M2):    A_J2_csr = csr_matrix(A_J2)    A_K2_csr = csr_matrix(A_K2)    A_L2_csr = csr_matrix(A_L2)    A_M2_csr = csr_matrix(A_M2)    ### initialize spin vector S    S_half = np.ones(len(A_J2) / 2)    S = np.concatenate((S_half, np.negative(S_half)))    np.random.shuffle(S)    ### initialization for optimization    Tmax = 100    Tmin = 0.01    #Tstep = 0.01    T = Tmax    numStep = 0    tol = 0.0    #SQS = findSQS(A_J2_csr, S, D_J2) + findSQS(A_K2_csr, S, D_K2) + findSQS(A_L2_csr, S, D_L2) \    #      + findSQS(A_M2_csr, S, D_M2)    SQS = findSQS(A_J2_csr, S, D_J2)    prevSQS = SQS    S_opt = []    max_len = 5    ### optimization loop    while T > Tmin:        if len(S_opt) == max_len:            break        ### swap two random spin variables in S with opposite signs        S_p = np.where(S == 1.)[0]        S_n = np.where(S == -1.)[0]        a = np.random.choice(S_p)        b = np.random.choice(S_n)        S[b], S[a] = S[a], S[b]        # SQS = findSQS(A_J2_csr, S, D_J2) + findSQS(A_K2_csr, S, D_K2) + findSQS(A_L2_csr, S, D_L2) \        #      + findSQS(A_M2_csr, S, D_M2)        SQS = findSQS(A_J2_csr, S, D_J2)        dSQS = SQS - prevSQS        if dSQS <= 0:            prevSQS = SQS            if SQS <= tol:                if any([np.array_equal(S, S_stored) for S_stored in S_opt]):                    print(numStep)                else:                    print(numStep)                    print(SQS)                    S_opt.append(S)                S = np.random.permutation(S)        else:            r = np.random.rand()            prob = 1/(1 + np.exp(dSQS/T))            if r <= prob:                prevSQS = SQS            else:                S[b], S[a] = S[a], S[b]        numStep += 1        decay = 1./(len(S))        T *= np.exp(-decay)        #T -= Tstep    print(numStep)    return S_opt######################################################################def createRandomS(numAtoms):	S = []	for i in range(numAtoms):		S.append(1)	while len([a for a in S if a == -1]) < len(S)/2:		rn = random.randint(1,numAtoms)		S[rn-1] = -1	return Sdef switchAtoms(S):	plusOnes, minusOnes = [],[]	for i in range(len(S)):		if S[i] == 1:			plusOnes.append(i)		else:			minusOnes.append(i)	rn1 = random.randint(0,len(plusOnes))	rn2 = random.randint(0,len(minusOnes))	S[rn1] = -1	S[rn2] = 1	return Sdef MC_SQS(A_J2, A_K2, A_L2, A_M2, D_J2, D_K2, D_L2, D_M2):    A_J2_csr = csr_matrix(A_J2)    A_K2_csr = csr_matrix(A_K2)    A_L2_csr = csr_matrix(A_L2)    A_M2_csr = csr_matrix(A_M2)    ### initialize spin vector S    S = createRandomS(len(A_J2))    ### initialize optimization loop    numberOfTrials = 100    numberOfS = 5    threshold = 0.01    saved_S = []    ### optimization loop    while len(saved_S) < numberOfS:        old_sqs = 1000        S = createRandomS(len(A_J2))        n = 0        while n < numberOfTrials:            ### swap two random spin variables in S with opposite signs            new_S = switchAtoms(S)  # Here, we randomly swith a +1 and a -1            ### calculate new SQS            new_sqs = findSQS(A_J2_csr, S, D_J2) + findSQS(A_K2_csr, S, D_K2) + findSQS(A_L2_csr, S, D_L2) \                  + findSQS(A_M2_csr, S, D_M2)            #new_sqs = findSQS(A_J2_csr, S, D_J2)            if new_sqs < old_sqs:                accept = True            else:                rn = np.random.rand()                if rn > 0.5:                    accept = True            if accept:                S = new_S            old_sqs = new_sqs            # Everytime we find a good S, we keep it and start over by reinitializing old_sqs to a large number            if new_sqs <= threshold:                if S not in saved_S:                    saved_S.append(S)                    print(S)                    print(new_sqs)                break            n += 1    return saved_S################## call the functions ##################os.chdir("C:\\Users\\pc\\Desktop\\vnl")    # change to your own directoryinfname, cell_params, cell_angles, frac_coords = readcif()print("Cell parameters are ", cell_params)print("Cell angles are ", cell_angles)cell_angles_rad = np.radians(cell_angles)A_J2 = findA(J2, cell_params, cell_angles_rad, frac_coords)A_K2 = findA(K2, cell_params, cell_angles_rad, frac_coords)A_L2 = findA(L2, cell_params, cell_angles_rad, frac_coords)A_M2 = findA(M2, cell_params, cell_angles_rad, frac_coords)#A_N2 = findA(N2, cell_params, cell_angles_rad, frac_coords)#A_O2 = findA(O2, cell_params, cell_angles_rad, frac_coords)S_opt = optimize_SQS(A_J2, A_K2, A_L2, A_M2, D_J2, D_K2, D_L2, D_M2)#S_opt = MC_SQS(A_J2, A_K2, A_L2, A_M2, D_J2, D_K2, D_L2, D_M2)print(S_opt)for num in range(len(S_opt)):    writecif(infname, num, S_opt[num])
+import numpy as np
+from FindAdjacencyMatrix import *
+from utils import *
+
+################## function definitions ##################
+
+def findSQS4(A, S, D, N):
+    ### A should be a sparse matrix class object NDSparse
+
+    SQS = 0
+
+    for i in np.arange(len(A.tuples)):
+        SQS += A.values[i] * S[A.tuples[i][0]] * S[A.tuples[i][1]] * S[A.tuples[i][2]] * S[A.tuples[i][3]]
+
+    SQS /= (24. * N * D)
+
+    return SQS
+
+
+def findSQS3(A, S, D, N):
+    ### A should be a sparse matrix class object NDSparse
+
+    SQS = 0
+
+    for i in np.arange(len(A.tuples)):
+        SQS += A.values[i] * S[A.tuples[i][0]] * S[A.tuples[i][1]] * S[A.tuples[i][2]]
+
+    SQS /= (6. * N * D)
+
+    return SQS
+
+
+def findSQS(A, S, D, N):
+    ### A should be a sparse matrix class object NDSparse
+
+    SQS = 0
+
+    for i in np.arange(len(A.tuples)):
+        SQS += A.values[i] * S[A.tuples[i][0]] * S[A.tuples[i][1]]
+
+    SQS /= (2. * N * D)
+
+    return SQS
+
+
+def changeSQS(A, S, a, b, D, N, rowlen):
+    ### calculate the change in correlation function after flippling the spins S[a] and S[b]
+    ### A should be a sparse matrix class object NDSparse
+
+    ### tuples and values must be sorted first using A.sortArrays
+
+    ### dSQS = 2(S_b - S_a)[sum_{i!=a, b}(S_i * A_{ai}) - sum_{j!=a, b}(S_j * A_{bj})]
+    dSQS = 0
+
+    ### calculate sum_{i!=a, b}(S_i * A_{ai})
+    for i in np.arange(a * rowlen, (a + 1) * rowlen):
+        if (A.tuples[i][1] != a) and (A.tuples[i][1] != b):
+            dSQS += S[A.tuples[i][1]] * A.values[i]
+            # print(dSQS)   ### DEBUG
+
+    # print("1. Now the dSQS is", dSQS)
+
+    ### calculate sum_{j!=a, b}(S_j * A_{bj})
+    for j in np.arange(b * rowlen, (b + 1) * rowlen):
+        if (A.tuples[j][1] != a) and (A.tuples[j][1] != b): 
+            dSQS -= S[A.tuples[j][1]] * A.values[j]
+            # print(dSQS)   ### DEBUG
+
+    # print("2. Now the dSQS is", dSQS)
+
+    dSQS *= 2 * (S[b] - S[a])
+    dSQS /= (2. * N * D)
+
+    return dSQS
+
+
+def optimize_SQS(A_J2, A_K2, A_L2, A_M2, D_J2, D_K2, D_L2, D_M2, N):
+
+    ### initialization for optimization
+    Tmax = 2.0
+    Tmin = 0.01
+    Tstep = 0.01
+
+    T = Tmax
+    numStep = 0
+    iters = 0
+
+    tol = 0.05
+
+    ### output the tuple indices and adjacency values to numpy arrays
+    A_J2.item2Arrays()
+    A_K2.item2Arrays()
+    A_L2.item2Arrays()
+    A_M2.item2Arrays()
+
+    ### sort the adjacency matrices
+    A_J2.sortArrays()
+    A_K2.sortArrays()
+    A_L2.sortArrays()
+    A_M2.sortArrays()
+
+    ### set parameter values for rowlen
+    rowlen_J2 = len(A_J2.tuples) / N
+    rowlen_K2 = len(A_K2.tuples) / N
+    rowlen_L2 = len(A_L2.tuples) / N
+    rowlen_M2 = len(A_M2.tuples) / N
+
+    # initialize data
+    S_opt = []
+    SQS_opt = []
+    iter_opt = []
+
+    SQS_vals = []
+
+    max_len = 10
+    FOUND = 1
+
+    ### initialize spin vector S
+    S_half = np.ones(N / 2)
+    S = np.concatenate((S_half, np.negative(S_half)))
+    np.random.shuffle(S)
+
+
+    ### optimization routine
+    print("Start optimization ...")
+    print("-------------------")
+
+    while (T > Tmin):
+
+        if len(S_opt) == max_len:
+            break
+
+        while FOUND == 1:
+
+            SQS_J2 = findSQS(A_J2, S, D_J2, N)
+            SQS_K2 = findSQS(A_K2, S, D_K2, N)
+            SQS_L2 = findSQS(A_L2, S, D_L2, N)
+            SQS_M2 = findSQS(A_M2, S, D_M2, N)
+        
+            #SQS = findSQS(A_J2, S, D_J2, N)
+        
+            SQS = np.abs(SQS_J2) + np.abs(SQS_K2) + np.abs(SQS_L2) + np.abs(SQS_M2)
+
+            SQS_vals.append(SQS)
+
+            if SQS <= tol:   ### if an SQS is found
+                
+                ### if the newly-found array already exists in S_opt
+                if any([np.array_equal(S, S_stored) for S_stored in S_opt]):
+                    print(numStep)
+                    print("Found one, but which already exists.")
+                    print(SQS)
+                    print("-------------------")
+                    #print(S)
+                    #print(S_stored)
+                else:
+                    print(numStep)
+                    print("Found new!")
+                    print(SQS)
+                    print("-------------------")
+                    S_opt.append(S)
+                    SQS_opt.append(SQS)
+                    iter_opt.append(iters)
+
+                S = np.random.permutation(S)
+
+            else:
+                print(SQS)
+                print("-------------------")
+                FOUND = 0
+
+            iters += 1
+
+        prevSQS = SQS
+
+
+        ### swap two random spin variables in S with opposite signs
+        S_p = np.where(S == 1.)[0]
+        S_n = np.where(S == -1.)[0]
+
+        for a in S_p:
+
+            if (len(S_opt) == max_len) or (FOUND == 1):
+                break
+
+            for b in S_n:
+
+                if (len(S_opt) == max_len) or (FOUND == 1):
+                    break
+
+                if S[a] != S[b]:   ### spins are of opposite sign
+
+                    dSQS_J2 = changeSQS(A_J2, S, a, b, D_J2, N, rowlen_J2)
+                    dSQS_K2 = changeSQS(A_K2, S, a, b, D_K2, N, rowlen_K2)
+                    dSQS_L2 = changeSQS(A_L2, S, a, b, D_L2, N, rowlen_L2)
+                    dSQS_M2 = changeSQS(A_M2, S, a, b, D_M2, N, rowlen_M2)
+
+                    SQS = np.abs(SQS_J2 + dSQS_J2) + np.abs(SQS_K2 + dSQS_K2) \
+                        + np.abs(SQS_L2 + dSQS_L2) + np.abs(SQS_M2 + dSQS_M2)
+
+                    SQS_vals.append(SQS)
+
+                    dSQS = SQS - prevSQS
+
+                    if dSQS <= 0:   ### target function decreased -- flip spins!
+
+                        prevSQS = SQS
+                        
+                        S[b], S[a] = S[a], S[b]
+
+                        SQS_J2 += dSQS_J2
+                        SQS_K2 += dSQS_K2
+                        SQS_L2 += dSQS_L2
+                        SQS_M2 += dSQS_M2
+
+                        #print("Flipped -")
+
+                        if SQS <= tol:   ### if an SQS is found
+
+                            ### if the newly-found array already exists in S_opt
+                            if any([np.array_equal(S, S_stored) for S_stored in S_opt]):
+                                print(numStep)
+                                print("Found one, but which already exists.")
+                                print(SQS)
+                                print("-------------------")
+                                #print(S)
+                                #print(S_stored)
+
+                            else:
+                                print(numStep)
+                                print("Found new!")
+                                print(SQS)
+                                print("-------------------")
+                                S_opt.append(S)
+                                SQS_opt.append(SQS)
+                                iter_opt.append(iters)
+
+                            S = np.random.permutation(S)
+                            FOUND = 1
+
+                    ### target function not decreased -- 
+                    ### flip spins with "temperature"-dependent probability!
+                    else:
+
+                        print(SQS)
+                        print("-------------------")
+
+                        r = np.random.rand()
+                        prob = 1/(1 + np.exp(dSQS/T))
+
+                        if r <= prob:
+
+                            prevSQS = SQS
+
+                            S[b], S[a] = S[a], S[b]
+
+                            SQS_J2 += dSQS_J2
+                            SQS_K2 += dSQS_K2
+                            SQS_L2 += dSQS_L2
+                            SQS_M2 += dSQS_M2
+
+                            #print("Flipped +")
+
+                        #else:
+                            #print("Not flipped +")
+
+                else:
+                    #print("Spins are of the same sign. Not flipped.")
+                    SQS_vals.append(prevSQS)
+
+                iters += 1
+
+        numStep += 1
+        #decay = 1./N
+        #T *= np.exp(-decay)
+        T -= Tstep
+
+
+    S_opt = np.asarray(S_opt)
+    SQS_opt = np.asarray(SQS_opt)
+    iter_opt = np.asarray(iter_opt)
+    SQS_vals = np.asarray(SQS_vals)
+
+    print("Optimization finished in %d iterations." % iters)
+    print("-------------------")
+    print("The correlation function value for the structures found are:")
+    np.set_printoptions(precision=4)
+    print(SQS_opt)
+
+    print(len(SQS_opt))
+    print(len(iter_opt))
+
+    return S_opt, SQS_opt, iter_opt, SQS_vals, iters
+
+######################################################################
+
