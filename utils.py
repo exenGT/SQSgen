@@ -55,6 +55,119 @@ def readcif():
     return infname, cell_params, cell_angles, frac_coords
 
 
+def readcif_full():
+
+    #infname = input("Open a cif file: " )    ### python3
+    infname = raw_input("Open a cif file: " )    ### python2
+    try:
+        infile = open(infname, 'r')
+    except IOError:
+        print("File " + infname + " cannot be opened!")
+        return 1
+    else:
+        if not infname.endswith(('.cif')):
+            print("Error: " + infname + ": Invalid input file format.")
+            return 2
+
+    cell_params = []
+    cell_angles = []
+    atom_species = []
+    frac_coords = []
+
+    for line in infile:
+
+        if "_cell_length_" in line:
+            linearr = line.split(" ")
+            cell_params.append(float(linearr[-1].rstrip("\n")))
+
+        if "_cell_angle_" in line:
+            linearr = line.split(" ")
+            cell_angles.append(float(linearr[-1].rstrip("\n")))
+
+        if "_atom_site_fract_z" in line:
+            while True:
+                try:
+                    line = next(infile)
+                    linearr = line.rstrip("\n").split(" ")
+                    atom_species.append(str(linearr[0]))
+                    frac_coords.append([float(i) for i in linearr[-3:]])
+                except StopIteration:
+                    break
+            break
+
+    print("Cell parameters and coordinates successfully read!")
+
+    infile.close()
+
+    cell_params = np.asarray(cell_params)
+    cell_angles = np.asarray(cell_angles)
+    frac_coords = np.asarray(frac_coords)  # convert to numpy array
+
+    return infname, cell_params, cell_angles, atom_species, frac_coords
+
+
+
+def readcif_full_2S():
+
+    #infname = input("Open a cif file: " )    ### python3
+    infname = raw_input("Open a cif file: " )    ### python2
+    try:
+        infile = open(infname, 'r')
+    except IOError:
+        print("File " + infname + " cannot be opened!")
+        return 1
+    else:
+        if not infname.endswith(('.cif')):
+            print("Error: " + infname + ": Invalid input file format.")
+            return 2
+
+    cell_params = []
+    cell_angles = []
+    frac_coords = []
+
+    S = []
+
+    for line in infile:
+
+        if "_cell_length_" in line:
+            linearr = line.split(" ")
+            cell_params.append(float(linearr[-1].rstrip("\n")))
+
+        if "_cell_angle_" in line:
+            linearr = line.split(" ")
+            cell_angles.append(float(linearr[-1].rstrip("\n")))
+
+        if "_atom_site_fract_z" in line:
+            while True:
+                try:
+                    line = next(infile)
+                    linearr = line.rstrip("\n").split(" ")
+                    frac_coords.append([float(i) for i in linearr[-3:]])
+
+                    if "Ga" in line:
+                        S.append(1)
+                    elif "In" in line:
+                        S.append(-1)
+                    elif "As" in line:
+                        S.append(0)
+
+                except StopIteration:
+                    break
+            break
+
+    print("Cell parameters and coordinates successfully read!")
+
+    infile.close()
+
+    cell_params = np.asarray(cell_params)
+    cell_angles = np.asarray(cell_angles)
+    frac_coords = np.asarray(frac_coords)  # convert to numpy array
+
+    S = np.asarray(S)  # convert to numpy array
+
+    return infname, cell_params, cell_angles, frac_coords, S
+
+
 def readcif2S(infname):
 
     try:
