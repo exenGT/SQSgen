@@ -85,6 +85,8 @@ def optimize_SQS(A_J2, A_K2, A_L2, A_M2, D_J2, D_K2, D_L2, D_M2, N, tol):
     numStep = 0
     iters = 0
 
+    tol = 0.05
+
     ### output the tuple indices and adjacency values to numpy arrays
     A_J2.item2Arrays()
     A_K2.item2Arrays()
